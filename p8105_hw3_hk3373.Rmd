@@ -108,3 +108,110 @@ According to the figure above, the values of tmax are concentrated around -5 to
 degrees. The distribution of snowfall for all years are right skewed because it 
 only snows during winter and it's subsequently more common for data in the 
 dataset to have lower values of snowfall overall. 
+
+# Problem 2
+
+## Load, tidy and merge accelerometer datasets:
+```{r load_tidy_merge_accel}
+accel_df = read_csv(
+  file = "./data/nhanes_accel.csv") |> 
+  janitor::clean_names()
+
+demographic_df = read_csv(
+  file = "./data/nhanes_covar.csv",
+  skip = 4,
+  na = "NA") |> 
+  janitor::clean_names() |>
+  mutate(education = case_match(
+             education,
+             1 ~ "less than high school",
+             2 ~ "high school equivalent",
+             3 ~ "more than high school"),
+         sex = case_match(
+             sex,
+             1 ~ "male",
+             2 ~ "female"),
+         education = as.factor(education),
+         sex = as.factor(sex))
+
+merged_accel_df = 
+  left_join(accel_df, demographic_df, 
+            by = join_by(seqn)) |>
+  drop_na(sex, age, bmi, education) |>
+  filter(age >= 21) |>
+    pivot_longer(
+    min1:min1440,
+    names_to = "minute",
+    names_prefix = "min",
+    values_to = "activity") |>
+  mutate(minute = as.numeric(minute))
+```
+
+## Number of men and women in each education category:
+```{r men_women_education}
+merged_accel_df |>
+  distinct(seqn, .keep_all = TRUE) |>
+  group_by(education, sex)|>
+  summarize(num = n()) |>
+  pivot_wider(
+    names_from = "sex",
+    values_from = "num"
+  ) |> knitr::kable()
+```
+
+Approximately half of the participants have education more than high school. 
+Also, for high school equivalent education, there are noticeably more males than 
+females compared to the other two education levels. 
+
+## Age distribution of men and women in each education category:
+```{r age_distribution_education}
+merged_accel_df |>
+  distinct(seqn, .keep_all = TRUE) |>
+  ggplot(aes(x = age, fill = sex)) +
+  geom_density(alpha = .5) +
+  facet_grid(~education) +
+  ggtitle("Age Distribution by Education")
+```
+
+The distributions for females with education less than high school and high 
+school equivalent are left skewed; however, the distributions for males with 
+both educations are bimodal. On the other hand, the distribution for both 
+females and males with education more than high school is right skewed. 
+
+## Aggregate accross minute and plot total activities vs age:
+```{r aggregate_activity_age}
+merged_accel_df |>
+  group_by(seqn, sex, age, education) |>
+  summarize(total_activity = sum(activity)) |>
+  ggplot(aes(x = age, y = total_activity, color = sex)) +
+  geom_point(alpha = .5) +
+  geom_smooth(se = FALSE) +
+  facet_grid(~education) +
+  ggtitle("Age vs. Total Activity")
+```
+
+Total activity generally decreases as age increases, which is more noticable for 
+less than high school and high school equivalent education, but less apparent in 
+education more than high school. For data of male who has high school equivalent 
+education, total activity increases until 40 and declines afterwards. 
+
+## Plot 24-hour activity time courses for each eduction level:
+```{r 24_hour_activity}
+merged_accel_df |>
+  arrange(minute) |>
+  mutate(hour = rep(1:24, each = 13680)) |>
+  group_by(seqn, sex, education, hour) |>
+  summarize(activity = sum(activity)) |>
+  ggplot(aes(y = activity, x = hour, color = sex)) +
+  geom_point(size = .2, alpha = .5) +
+  geom_smooth(se = FALSE) +
+  facet_grid(~education)  +
+  ggtitle("24-Hour Activity Time Course by Education")
+```
+
+For all education and sex, activity sharply increases after 5 AM when people 
+start waking up possibly due to work and exercise and declines at 8 PM when 
+people usually get back home from outdoor activities and start sleeping. Also, 
+there is one extreme outlier for activity data of male who has more than high 
+school education, which makes the range of the plot's y axis large for this 
+three-panel plot.
