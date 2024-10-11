@@ -1,0 +1,110 @@
+---
+title: "P8105 Homework 3"
+author: "Hyun Kim (hk3373)"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+library(tidyverse)
+library(patchwork)
+library(ggridges)
+
+theme_set(theme_minimal() + 
+  theme(legend.position = "bottom", 
+      plot.title = element_text(hjust = 0.5)))
+```
+
+# Problem 1
+
+## Load NY NOAA data:
+```{r load_ny_noaa}
+library(p8105.datasets)
+data("ny_noaa")
+str(ny_noaa)
+```
+
+The dataset has `r nrow(ny_noaa)` rows and `r ncol(ny_noaa)` columns, including 
+id, tmax and tmin as character variables, precipitation, snow as integer 
+variables,and date which is a date variable. There is a total of 
+`r sum(is.na(ny_noaa))` NA values in the dataset. Therefore, this could be an 
+issue in data analysis since there is a significant number of missing data. 
+
+## Tidy NY NOAA: 
+```{r tidy_ny_noaa}
+ny_noaa = ny_noaa |>
+  drop_na() |>
+  mutate(
+    prcp = prcp / 10,
+    tmax = as.integer(tmax) / 10,
+    tmin = as.integer(tmin) / 10
+  ) |>
+  separate(date, 
+           into = c("year", "month", "day"), 
+           sep = "-",
+           remove = FALSE) 
+```
+
+In tidying the dataset, the values of precipitation and temperature were divided 
+by 10 since they were in tenths of mm and degrees Celsius respectively. 
+
+### For snowfall, what are the most commonly observed values? Why?
+```{r most_common_snowfall}
+ny_noaa |>
+  group_by(snow) |>
+  summarize(count = n()) |>
+  arrange(desc(count)) |>
+  slice(1)
+```
+
+For snowfall, the most commonly observed value is 0 because it only snows in 
+winter, but the dataset includes data from the other three seasons when it 
+most likely doesn't snow. 
+
+## Average max temperature in January and July:
+```{r avg_tmax_jan_july} 
+ny_noaa |>
+  filter(month %in% c("01","07")) |>
+  mutate(
+    month = recode(month, "01" = "January"),
+    month = recode(month, "07" = "July")
+  ) |>
+  group_by(id, year, month) |>
+  summarize(average_tmax = round(mean(tmax), 2)) |>
+  ggplot(aes(x = year, y = average_tmax, color = month)) +
+  geom_point() +
+  facet_grid(~month) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Average Max Temperature in January and July")
+```
+
+### Is there any observable / interpretable structure? Any outliers?
+
+The average max temperature is noticeably higher in July compared to January 
+obviously because it's summer during July and winter during January. Data for 
+July 1988 has an extreme outlier. Data for January has noticeable outliers for 
+several years; the most extreme outliers are shown in 1982 and 1996. 
+
+## tmax vs tmin and snowfall distribution by year:
+```{r tmax_tmin_snowfall, fig.width = 10, fig.asp = .7}
+tmax_vs_tmin = 
+  ny_noaa |>
+  ggplot(aes(x = tmax, y = tmin)) + 
+  geom_hex() +
+  ggtitle("tmax vs tmin")
+
+snowfall_dist = 
+  ny_noaa |>
+  filter(snow > 0, snow < 100) |>
+  ggplot(aes(x = snow, y = year)) + 
+  geom_density_ridges(scale = 1.5) +
+  ggtitle("Snowfall Distribution by Year")
+
+tmax_vs_tmin + snowfall_dist
+```
+
+According to the figure above, the values of tmax are concentrated around -5 to 
+30 degrees Celsius, while the values of tmin are concentrated around -20 to 20 
+degrees. The distribution of snowfall for all years are right skewed because it 
+only snows during winter and it's subsequently more common for data in the 
+dataset to have lower values of snowfall overall. 
