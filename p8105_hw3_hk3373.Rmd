@@ -13,6 +13,19 @@ library(ggridges)
 theme_set(theme_minimal() + 
   theme(legend.position = "bottom", 
       plot.title = element_text(hjust = 0.5)))
+
+knitr::opts_chunk$set(
+	fig.width = 8, 
+  fig.height = 6
+)
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
 ```
 
 # Problem 1
@@ -86,7 +99,7 @@ July 1988 has an extreme outlier. Data for January has noticeable outliers for
 several years; the most extreme outliers are shown in 1982 and 1996. 
 
 ## tmax vs tmin and snowfall distribution by year:
-```{r tmax_tmin_snowfall, fig.width = 10, fig.asp = .7}
+```{r tmax_tmin_snowfall}
 tmax_vs_tmin = 
   ny_noaa |>
   ggplot(aes(x = tmax, y = tmin)) + 
